@@ -1003,9 +1003,42 @@ export const UserCustomizationView: React.FC<UserCustomizationViewProps> = ({
           (p.pendingAvatarName && p.pendingAvatarName === currentAvatar.name)))
   );
   const effectivePoseTab = avatarStorePoses.length > 0 ? posePanelTab : 'minhas';
+  // Only poses linked to the avatar on the pedestal, plus universal ones
+  const scopedPoses = poses.filter(
+    (p) =>
+      avatarStorePoses.some((a) => a.id === p.id) ||
+      (!p.associatedAvatarIds?.length && !p.pendingAvatarKey && !p.pendingAvatarName)
+  );
   const testPose = poses.find((p) => p.id === testPoseId) || null;
   const pedestalPose = testPose?.name || activePose;
   const isPoseAcquired = (p: AvatarPoseConfig) => Boolean(p.owned) || !p.price;
+
+  // Shows the pose's own 3D object on the pedestal; returns false if the pose has no model reference
+  const previewPoseObject = (pose: AvatarPoseConfig): boolean => {
+    const ref = pose.fileBlobUrl || pose.assetId || pose.originalItemId;
+    if (!ref) return false;
+    const item: CustomizationItem = {
+      id: pose.originalItemId || pose.id,
+      code: '#POSE',
+      name: pose.name,
+      category: 'poses',
+      thumb: pose.thumbnailUrl || '',
+      owned: true,
+      equipped: false,
+      assetId: pose.assetId,
+      originalItemId: pose.originalItemId || pose.assetId,
+      fileBlobUrl: pose.fileBlobUrl,
+      isMissingAsset: pose.isMissingAsset && !pose.fileBlobUrl,
+      actions: pose.actions,
+    };
+    setSelectedAccessoryId(null);
+    setSelectedItemToInspect(item);
+    setActiveAction(pose.actions?.[0] || null);
+    setTestPoseId(pose.id);
+    // Narrow screens hide the pedestal behind the lists; focus mode reveals it
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) setIsPedestalFocusMode(true);
+    return true;
+  };
 
   const keepTestPoseRef = React.useRef(false);
   useEffect(() => {
@@ -2395,6 +2428,21 @@ export const UserCustomizationView: React.FC<UserCustomizationViewProps> = ({
 
                         <button
                           type="button"
+                          onClick={() => {
+                            if (!previewPoseObject(pose)) {
+                              onApplyPose(pose.id);
+                              showToast(`Pose "${pose.name}" aplicada ao Avatar!`);
+                            }
+                          }}
+                          className="px-3 py-1.5 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-200 text-xs font-bold cursor-pointer flex items-center justify-center gap-1"
+                          title="Ver o objeto da pose no pedestal"
+                        >
+                          <span>👁️</span>
+                          <span>Ver</span>
+                        </button>
+
+                        <button
+                          type="button"
                           onClick={() => handleAddPoseToRoomAccess(pose)}
                           className="px-3 py-1.5 rounded-lg bg-[#ffd700]/15 hover:bg-[#ffd700] text-[#ffd700] hover:text-black border border-[#ffd700]/40 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1"
                           title="Adicionar esta pose ao Inventário de Acesso das Rooms"
@@ -2735,7 +2783,7 @@ export const UserCustomizationView: React.FC<UserCustomizationViewProps> = ({
               <h2 className="text-sm md:text-base font-serif text-zinc-200 tracking-wide">
                 Poses do Avatar
               </h2>
-              <span className="text-[10px] text-zinc-500 font-mono">{poses.length} poses</span>
+              <span className="text-[10px] text-zinc-500 font-mono">{scopedPoses.length} poses</span>
             </div>
 
             <button
@@ -2804,7 +2852,14 @@ export const UserCustomizationView: React.FC<UserCustomizationViewProps> = ({
                   <div className="flex items-center gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setTestPoseId(isTesting ? null : pose.id)}
+                      onClick={() => {
+                        if (isTesting) {
+                          setTestPoseId(null);
+                          setSelectedItemToInspect(null);
+                        } else if (!previewPoseObject(pose)) {
+                          setTestPoseId(pose.id);
+                        }
+                      }}
                       className={`flex-1 py-1.5 rounded-lg text-xs font-semibold cursor-pointer ${
                         isTesting ? 'bg-cyan-400 text-black' : 'bg-zinc-800/80 hover:bg-zinc-700 text-zinc-200'
                       }`}
@@ -2839,7 +2894,7 @@ export const UserCustomizationView: React.FC<UserCustomizationViewProps> = ({
             })}
             {(effectivePoseTab === 'avatar'
               ? []
-              : poses.filter((p) => !(p.associatedAvatarIds?.length && !isPoseAcquired(p)))
+              : scopedPoses.filter((p) => !(p.associatedAvatarIds?.length && !isPoseAcquired(p)))
             ).map((pose) => {
               const isRestricted = Boolean(
                 pose.associatedAvatarIds && pose.associatedAvatarIds.length > 0 && pose.access !== 'free'
@@ -3007,6 +3062,9 @@ export const UserCustomizationView: React.FC<UserCustomizationViewProps> = ({
                             setActiveAction(null);
                           }
                           setTestPoseId(pose.id);
+                          if (!previewPoseObject(pose)) {
+                            setSelectedItemToInspect(null);
+                          }
                           showToast(`👁️ Visualizando a pose "${pose.name}" no pedestal.`);
                         }}
                         className="w-full py-1.5 rounded-lg bg-cyan-950/40 hover:bg-cyan-900/60 border border-cyan-500/40 text-cyan-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5"
@@ -3083,8 +3141,13 @@ export const UserCustomizationView: React.FC<UserCustomizationViewProps> = ({
             if (onSelectActiveAvatar) onSelectActiveAvatar(slot.itemId);
             showToast(`Avatar "${slot.name}" selecionado.`);
           } else {
-            onApplyPose(slot.itemId);
-            showToast(`Pose "${slot.name}" aplicada ao Avatar.`);
+            const slotPose = poses.find((p) => p.id === slot.itemId || p.name === slot.name);
+            if (slotPose && previewPoseObject(slotPose)) {
+              showToast(`👁️ Pose "${slot.name}" no pedestal.`);
+            } else {
+              onApplyPose(slot.itemId);
+              showToast(`Pose "${slot.name}" aplicada ao Avatar.`);
+            }
           }
         }}
         activeAvatarId={selectedAvatarId}

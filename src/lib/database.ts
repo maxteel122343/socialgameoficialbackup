@@ -483,6 +483,10 @@ export async function fetchPublicStoreItems(): Promise<{
             pendingAvatarKey: row.metadata?.pendingAvatarKey || undefined,
             pendingAvatarName: row.metadata?.pendingAvatarName || undefined,
             rarity: row.rarity || 'COMUM',
+            assetId: extractedUuid || undefined,
+            originalItemId: extractedUuid || row.metadata?.originalItemId || undefined,
+            isMissingAsset: hasMissingAsset,
+            actions: row.metadata?.actions || [],
           });
         } else {
           const isAcessorio = row.object_type === 'acessorio' || Boolean(row.metadata?.isAccessory);

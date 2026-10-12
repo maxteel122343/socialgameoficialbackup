@@ -1285,6 +1285,10 @@ export const App: React.FC = () => {
         sourceObjectId: sourceId,
         pendingAvatarKey: pendingAttachId,
         pendingAvatarName: pendingAttachName,
+        assetId: payload.item.assetId || (payload.item.id.startsWith('inv-') ? undefined : payload.item.id),
+        originalItemId: payload.item.id,
+        fileBlobUrl: payload.item.fileBlobUrl,
+        actions: payload.actions || payload.item.actions || [],
       };
       setAvatarPoses((prev) => [
         newPose,
@@ -1326,6 +1330,10 @@ export const App: React.FC = () => {
           rarity: payload.rarity,
           sourceObjectId: o.id,
           bundledInPack: true,
+          assetId: poseInv?.assetId || o.assetId,
+          originalItemId: poseInv?.id || o.assetId,
+          fileBlobUrl: o.fileBlobUrl || poseInv?.fileBlobUrl,
+          actions: o.actions || poseInv?.actions || [],
         };
       });
       const newAvatar: StoreAvatar = {

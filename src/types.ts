@@ -388,6 +388,12 @@ export interface AvatarPoseConfig {
   pendingAvatarKey?: string;
   pendingAvatarName?: string;
   bundledInPack?: boolean;
+  // 3D model of the pose object, shown on the pedestal when previewing
+  assetId?: string;
+  originalItemId?: string;
+  fileBlobUrl?: string;
+  isMissingAsset?: boolean;
+  actions?: ObjectAction[];
 }
 
 export interface RoomAccessSlot {
